@@ -344,4 +344,211 @@ ShellRoot {
             }
         }
     }
+    
+    // 3. Side Drawer Window for Thunderbird Mails
+    Variants {
+        model: Quickshell.screens
+        
+        PanelWindow {
+            id: mailDrawerWindow
+            required property var modelData
+            screen: modelData
+            visible: true
+            
+            WlrLayershell.namespace: "quickshell:mail_drawer"
+            WlrLayershell.layer: WlrLayer.Top
+            color: "transparent"
+            anchors { top: true; bottom: true; left: true }
+            
+            // Set implicitWidth to animate when expanded or collapsed
+            implicitWidth: isExpanded ? 340 : 40
+            
+            Behavior on implicitWidth {
+                NumberAnimation { duration: 300; easing.type: Easing.OutQuint }
+            }
+            
+            // Mask to ensure clicks pass through outside the drawer area
+            mask: Region {
+                item: drawerContainer
+            }
+            
+            // Properties & States
+            property bool isExpanded: false
+            property var latestMails: []
+            
+            // Fetch mails every 15 seconds
+            Timer {
+                id: mailTimer
+                interval: 15000
+                running: true
+                repeat: true
+                triggeredOnStart: true
+                onTriggered: {
+                    mailProcess.running = true
+                }
+            }
+            
+            Process {
+                id: mailProcess
+                command: ["/home/zoro/.config/quickshell/scripts/get_latest_mails.py"]
+                stdout: SplitParser {
+                    onRead: (data) => {
+                        try {
+                            var obj = JSON.parse(data)
+                            mailDrawerWindow.latestMails = obj
+                        } catch(e) {
+                            console.log("Error parsing mail JSON: " + e)
+                        }
+                    }
+                }
+            }
+            
+            Rectangle {
+                id: drawerContainer
+                anchors.fill: parent
+                color: Qt.rgba(0.04, 0.04, 0.06, 0.92) // Deep premium glassmorphic dark
+                border.width: 1.5
+                border.color: Qt.rgba(1, 1, 1, 0.08)
+                
+                // Toggle Button (always visible on the right edge of the window)
+                Rectangle {
+                    id: toggleButton
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 32
+                    height: 80
+                    radius: 8
+                    color: Qt.rgba(0.12, 0.12, 0.16, 0.8)
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.1)
+                    
+                    Text {
+                        anchors.centerIn: parent
+                        font.pixelSize: 18
+                        font.family: "JetBrainsMono Nerd Font"
+                        color: "#ffffff"
+                        text: mailDrawerWindow.isExpanded ? "" : ""
+                    }
+                    
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        hoverEnabled: true
+                        onClicked: {
+                            mailDrawerWindow.isExpanded = !mailDrawerWindow.isExpanded
+                        }
+                    }
+                }
+                
+                // Main Mail Content (visible only when expanded)
+                Item {
+                    id: mailContent
+                    anchors.fill: parent
+                    anchors.rightMargin: 36 // leave space for toggle button
+                    anchors.leftMargin: 20
+                    anchors.topMargin: 40
+                    anchors.bottomMargin: 20
+                    visible: mailDrawerWindow.isExpanded || mailDrawerWindow.implicitWidth > 100
+                    opacity: mailDrawerWindow.isExpanded ? 1.0 : 0.0
+                    
+                    Behavior on opacity {
+                        NumberAnimation { duration: 150 }
+                    }
+                    
+                    Column {
+                        width: parent.width
+                        spacing: 18
+                        
+                        Row {
+                            spacing: 12
+                            
+                            Text {
+                                font.pixelSize: 22
+                                font.family: "JetBrainsMono Nerd Font"
+                                color: "#00e676"
+                                text: "󰇮"
+                            }
+                            
+                            Text {
+                                font.pixelSize: 18
+                                font.family: "Outfit, Inter, Roboto, sans-serif"
+                                font.weight: Font.Bold
+                                color: "#ffffff"
+                                text: "Thunderbird Inbox"
+                            }
+                        }
+                        
+                        Rectangle {
+                            width: parent.width
+                            height: 1
+                            color: Qt.rgba(1, 1, 1, 0.1)
+                        }
+                        
+                        // Scrollable list of mails
+                        Column {
+                            width: parent.width
+                            spacing: 12
+                            
+                            Repeater {
+                                model: mailDrawerWindow.latestMails
+                                
+                                Rectangle {
+                                    width: parent.width
+                                    height: 64
+                                    radius: 10
+                                    color: Qt.rgba(1, 1, 1, 0.03)
+                                    border.width: 1
+                                    border.color: Qt.rgba(1, 1, 1, 0.05)
+                                    
+                                    Column {
+                                        anchors.fill: parent
+                                        anchors.margins: 10
+                                        spacing: 4
+                                        
+                                        Row {
+                                            width: parent.width
+                                            
+                                            Text {
+                                                width: parent.width - 60
+                                                font.pixelSize: 13
+                                                font.family: "Outfit, Inter, Roboto, sans-serif"
+                                                font.weight: Font.Bold
+                                                color: "#ffffff"
+                                                elide: Text.ElideRight
+                                                text: modelData.author
+                                            }
+                                            
+                                            Text {
+                                                width: 60
+                                                font.pixelSize: 10
+                                                font.family: "Outfit, Inter, Roboto, sans-serif"
+                                                color: Qt.rgba(1, 1, 1, 0.4)
+                                                horizontalAlignment: Text.AlignRight
+                                                text: {
+                                                    var diff = Math.floor(new Date().getTime() / 1000) - modelData.time
+                                                    if (diff < 60) return "Just now"
+                                                    if (diff < 3600) return Math.floor(diff / 60) + "m ago"
+                                                    if (diff < 86400) return Math.floor(diff / 3600) + "h ago"
+                                                    return Math.floor(diff / 86400) + "d ago"
+                                                }
+                                            }
+                                        }
+                                        
+                                        Text {
+                                            width: parent.width
+                                            font.pixelSize: 12
+                                            font.family: "Outfit, Inter, Roboto, sans-serif"
+                                            color: Qt.rgba(1, 1, 1, 0.6)
+                                            elide: Text.ElideRight
+                                            text: modelData.subject
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

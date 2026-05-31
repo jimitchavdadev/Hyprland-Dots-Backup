@@ -205,11 +205,12 @@ ShellRoot {
                                 
                                 MouseArea {
                                     anchors.fill: parent
+                                    anchors.margins: -8
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     
-                                    onClicked: (mouse) => {
+                                    onPressed: (mouse) => {
                                         var app = modelData
                                         if (mouse.button === Qt.LeftButton) {
                                             Hyprland.dispatch("exec /home/zoro/.config/quickshell/scripts/operate_app.sh focus " + app)

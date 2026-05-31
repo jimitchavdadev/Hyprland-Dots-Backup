@@ -2,13 +2,15 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Quickshell.Io
 
 ShellRoot {
     Variants {
         model: Quickshell.screens
         
-        // 1. Background Wallpaper Clock
+        // 1. Background Wallpaper Clock & Status panel
         PanelWindow {
+            id: wallpaperWindow
             required property var modelData
             screen: modelData
             visible: true
@@ -18,40 +20,173 @@ ShellRoot {
             color: "transparent"
             anchors { top: true; bottom: true; left: true; right: true }
             
+            // System Stats Properties
+            property int batteryCapacity: 100
+            property string batteryStatus: "Full"
+            property var runningApps: []
+            
+            function getBatteryIcon(capacity, status) {
+                if (status === "Charging") return "󱐋";
+                if (capacity >= 90) return "";
+                if (capacity >= 70) return "";
+                if (capacity >= 40) return "";
+                if (capacity >= 15) return "";
+                return "";
+            }
+            
+            // Periodically refresh stats
+            Timer {
+                id: statsTimer
+                interval: 5000 // every 5 seconds
+                running: true
+                repeat: true
+                triggeredOnStart: true
+                onTriggered: {
+                    statsProcess.running = true
+                }
+            }
+            
+            Process {
+                id: statsProcess
+                command: ["/home/zoro/.config/quickshell/scripts/get_system_stats.sh"]
+                stdout: SplitParser {
+                    onRead: (data) => {
+                        try {
+                            var obj = JSON.parse(data)
+                            wallpaperWindow.batteryCapacity = obj.battery_capacity
+                            wallpaperWindow.batteryStatus = obj.battery_status
+                            wallpaperWindow.runningApps = obj.running_apps
+                        } catch(e) {
+                            console.log("Error parsing stats JSON: " + e)
+                        }
+                    }
+                }
+            }
+            
             Rectangle {
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
                 anchors.bottomMargin: 32
                 anchors.rightMargin: 32
                 
-                width: contentLayout.width + 48
-                height: contentLayout.height + 28
-                radius: 16
-                color: Qt.rgba(0.05, 0.05, 0.08, 0.85) // Sleek matte black box
-                border.width: 1
-                border.color: Qt.rgba(1, 1, 1, 0.08) // Subtle border highlight
+                width: 220
+                height: contentLayout.height + 36
+                radius: 20
+                color: Qt.rgba(0.04, 0.04, 0.06, 0.85) // Matte translucent glassmorphic dark
+                border.width: 1.5
+                border.color: Qt.rgba(1, 1, 1, 0.1) // Fine glowing border
+                
+                // Animate height changes when apps open/close
+                Behavior on height {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutQuad }
+                }
                 
                 Column {
                     id: contentLayout
-                    anchors.centerIn: parent
-                    spacing: 4
+                    anchors.top: parent.top
+                    anchors.topMargin: 18
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: parent.width - 32
+                    spacing: 12
                     
+                    // Time
                     Text {
                         id: clockText
-                        font.pixelSize: 42
-                        font.family: "Outfit, Inter, Roboto, Helvetica, Arial, sans-serif"
+                        font.pixelSize: 44
+                        font.family: "Outfit, Inter, Roboto, sans-serif"
                         font.weight: Font.Bold
                         color: "#ffffff"
                         anchors.horizontalCenter: parent.horizontalCenter
                     }
                     
+                    // Date
                     Text {
                         id: dateText
-                        font.pixelSize: 15
-                        font.family: "Outfit, Inter, Roboto, Helvetica, Arial, sans-serif"
+                        font.pixelSize: 14
+                        font.family: "Outfit, Inter, Roboto, sans-serif"
                         font.weight: Font.Medium
-                        color: Qt.rgba(1, 1, 1, 0.65)
+                        color: Qt.rgba(1, 1, 1, 0.6)
                         anchors.horizontalCenter: parent.horizontalCenter
+                    }
+                    
+                    // Divider 1
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: Qt.rgba(1, 1, 1, 0.08)
+                    }
+                    
+                    // Battery Row
+                    Row {
+                        spacing: 8
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        
+                        Text {
+                            font.pixelSize: 16
+                            font.family: "JetBrainsMono Nerd Font"
+                            color: {
+                                if (wallpaperWindow.batteryStatus === "Charging") return "#4caf50"
+                                if (wallpaperWindow.batteryCapacity < 20) return "#f44336"
+                                return "#00e676"
+                            }
+                            text: wallpaperWindow.getBatteryIcon(wallpaperWindow.batteryCapacity, wallpaperWindow.batteryStatus)
+                        }
+                        
+                        Text {
+                            font.pixelSize: 13
+                            font.family: "Outfit, Inter, Roboto, sans-serif"
+                            font.weight: Font.SemiBold
+                            color: Qt.rgba(1, 1, 1, 0.8)
+                            text: wallpaperWindow.batteryCapacity + "%" + (wallpaperWindow.batteryStatus === "Charging" ? " (Charging)" : "")
+                        }
+                    }
+                    
+                    // Divider 2 (only visible if running apps present)
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: Qt.rgba(1, 1, 1, 0.08)
+                        visible: wallpaperWindow.runningApps.length > 0
+                    }
+                    
+                    // Background apps row
+                    Row {
+                        spacing: 14
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        visible: wallpaperWindow.runningApps.length > 0
+                        
+                        Repeater {
+                            model: wallpaperWindow.runningApps
+                            
+                            Text {
+                                font.pixelSize: 18
+                                font.family: "JetBrainsMono Nerd Font"
+                                color: {
+                                    var app = modelData
+                                    if (app === "spotify") return "#1DB954"
+                                    if (app === "telegram") return "#229ED9"
+                                    if (app === "discord") return "#5865F2"
+                                    if (app === "steam") return "#66c0f4"
+                                    if (app === "brave") return "#F96854"
+                                    if (app === "chrome") return "#4285F4"
+                                    if (app === "code") return "#007ACC"
+                                    if (app === "slack") return "#4A154B"
+                                    return "#ffffff"
+                                }
+                                text: {
+                                    var app = modelData
+                                    if (app === "spotify") return ""
+                                    if (app === "telegram") return ""
+                                    if (app === "discord") return ""
+                                    if (app === "steam") return ""
+                                    if (app === "brave") return ""
+                                    if (app === "chrome") return ""
+                                    if (app === "code") return "󰨞"
+                                    if (app === "slack") return ""
+                                    return ""
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -82,20 +217,17 @@ ShellRoot {
             required property var modelData
             screen: modelData
             
-            // Only visible when OSD is active to prevent blocking pointer events
             visible: osdBox.opacity > 0
             
             WlrLayershell.namespace: "quickshell:workspace_osd"
-            WlrLayershell.layer: WlrLayer.Overlay // On top of everything
+            WlrLayershell.layer: WlrLayer.Overlay
             
-            // Center the window on screen by setting size and leaving anchors unset
             width: 180
             height: 180
             color: "transparent"
             
             property bool isReady: false
             
-            // Prevent OSD from triggering on initial shell load
             Timer {
                 id: startupDelay
                 interval: 1500
@@ -123,8 +255,8 @@ ShellRoot {
                 anchors.centerIn: parent
                 width: 140
                 height: 140
-                radius: 28 // Smooth rounded squircle
-                color: Qt.rgba(0.03, 0.03, 0.05, 0.85) // Rich dark theme
+                radius: 28
+                color: Qt.rgba(0.03, 0.03, 0.05, 0.85)
                 border.width: 1.5
                 border.color: Qt.rgba(1, 1, 1, 0.12)
                 
@@ -167,7 +299,7 @@ ShellRoot {
             
             Timer {
                 id: hideTimer
-                interval: 600 // Show OSD for 0.6 seconds
+                interval: 600
                 onTriggered: {
                     osdBox.state = "hidden"
                 }

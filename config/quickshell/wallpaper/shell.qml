@@ -345,6 +345,7 @@ ShellRoot {
         }
     }
     
+    /*
     // 3. Side Drawer Window for Thunderbird Mails
     Variants {
         model: Quickshell.screens
@@ -551,4 +552,5 @@ ShellRoot {
             }
         }
     }
+    */
 }

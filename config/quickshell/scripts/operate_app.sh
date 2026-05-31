@@ -26,4 +26,19 @@ if [[ -n "$client_info" ]]; then
     elif [[ "$action" == "close" ]]; then
         hyprctl dispatch closewindow "address:$address"
     fi
+else
+    # Fallback: if no active window is found and action is focus, launch/restore the app
+    if [[ "$action" == "focus" ]]; then
+        case "$app_name" in
+            spotify) spotify & ;;
+            telegram) telegram-desktop & ;;
+            discord) discord & ;;
+            steam) steam & ;;
+            brave) brave & ;;
+            chrome) (google-chrome-stable & || google-chrome & || chrome &) ;;
+            code) code & ;;
+            slack) slack & ;;
+            *) "$app_name" & ;;
+        esac
+    fi
 fi

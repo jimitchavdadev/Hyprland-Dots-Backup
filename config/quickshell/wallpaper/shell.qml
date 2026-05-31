@@ -20,10 +20,34 @@ ShellRoot {
             color: "transparent"
             anchors { top: true; bottom: true; left: true; right: true }
             
+            // Input mask: only dashboard container intercepts pointer events, others pass through
+            mask: Region {
+                item: dashboardContainer
+            }
+            
             // System Stats Properties
             property int batteryCapacity: 100
             property string batteryStatus: "Full"
             property var runningApps: []
+            property bool hasNotifiedLowBattery: false
+            
+            onBatteryCapacityChanged: {
+                checkBatteryNotification()
+            }
+            onBatteryStatusChanged: {
+                checkBatteryNotification()
+            }
+            
+            function checkBatteryNotification() {
+                if (batteryCapacity < 20 && batteryStatus !== "Charging") {
+                    if (!hasNotifiedLowBattery) {
+                        Hyprland.dispatch("exec notify-send -u critical -a 'Battery' 'Low Battery Alert' 'Battery capacity is below 20% (" + batteryCapacity + "%). Please connect your charger.'")
+                        hasNotifiedLowBattery = true
+                    }
+                } else if (batteryCapacity >= 20 || batteryStatus === "Charging") {
+                    hasNotifiedLowBattery = false
+                }
+            }
             
             function getBatteryIcon(capacity, status) {
                 if (status === "Charging") return "󱐋";
@@ -63,6 +87,7 @@ ShellRoot {
             }
             
             Rectangle {
+                id: dashboardContainer
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
                 anchors.bottomMargin: 32
@@ -176,6 +201,22 @@ ShellRoot {
                                     if (app === "code") return "󰨞"
                                     if (app === "slack") return ""
                                     return ""
+                                }
+                                
+                                MouseArea {
+                                    anchors.fill: parent
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    
+                                    onClicked: (mouse) => {
+                                        var app = modelData
+                                        if (mouse.button === Qt.LeftButton) {
+                                            Hyprland.dispatch("exec /home/zoro/.config/quickshell/scripts/operate_app.sh focus " + app)
+                                        } else if (mouse.button === Qt.RightButton) {
+                                            Hyprland.dispatch("exec /home/zoro/.config/quickshell/scripts/operate_app.sh close " + app)
+                                        }
+                                    }
                                 }
                             }
                         }

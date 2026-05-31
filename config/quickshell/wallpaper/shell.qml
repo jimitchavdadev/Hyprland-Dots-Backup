@@ -5,10 +5,10 @@ import Quickshell.Hyprland
 import Quickshell.Io
 
 ShellRoot {
+    // 1. Background Wallpaper Clock & Status Panel
     Variants {
         model: Quickshell.screens
         
-        // 1. Background Wallpaper Clock & Status panel
         PanelWindow {
             id: wallpaperWindow
             required property var modelData
@@ -34,7 +34,6 @@ ShellRoot {
                 return "";
             }
             
-            // Periodically refresh stats
             Timer {
                 id: statsTimer
                 interval: 5000 // every 5 seconds
@@ -76,7 +75,6 @@ ShellRoot {
                 border.width: 1.5
                 border.color: Qt.rgba(1, 1, 1, 0.1) // Fine glowing border
                 
-                // Animate height changes when apps open/close
                 Behavior on height {
                     NumberAnimation { duration: 250; easing.type: Easing.OutQuad }
                 }
@@ -89,7 +87,6 @@ ShellRoot {
                     width: parent.width - 32
                     spacing: 12
                     
-                    // Time
                     Text {
                         id: clockText
                         font.pixelSize: 44
@@ -99,7 +96,6 @@ ShellRoot {
                         anchors.horizontalCenter: parent.horizontalCenter
                     }
                     
-                    // Date
                     Text {
                         id: dateText
                         font.pixelSize: 14
@@ -109,14 +105,12 @@ ShellRoot {
                         anchors.horizontalCenter: parent.horizontalCenter
                     }
                     
-                    // Divider 1
                     Rectangle {
                         width: parent.width
                         height: 1
                         color: Qt.rgba(1, 1, 1, 0.08)
                     }
                     
-                    // Battery Row
                     Row {
                         spacing: 8
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -135,13 +129,12 @@ ShellRoot {
                         Text {
                             font.pixelSize: 13
                             font.family: "Outfit, Inter, Roboto, sans-serif"
-                            font.weight: Font.SemiBold
+                            font.weight: Font.DemiBold
                             color: Qt.rgba(1, 1, 1, 0.8)
                             text: wallpaperWindow.batteryCapacity + "%" + (wallpaperWindow.batteryStatus === "Charging" ? " (Charging)" : "")
                         }
                     }
                     
-                    // Divider 2 (only visible if running apps present)
                     Rectangle {
                         width: parent.width
                         height: 1
@@ -149,7 +142,6 @@ ShellRoot {
                         visible: wallpaperWindow.runningApps.length > 0
                     }
                     
-                    // Background apps row
                     Row {
                         spacing: 14
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -210,8 +202,12 @@ ShellRoot {
                 }
             }
         }
+    }
+    
+    // 2. Central Workspace OSD Overlay
+    Variants {
+        model: Quickshell.screens
         
-        // 2. Central Workspace OSD Overlay
         PanelWindow {
             id: workspaceOsdWindow
             required property var modelData
